@@ -372,13 +372,13 @@ class Client_Hero(Entity):
                     if not self.cooldown:
                         self.action1 = True
                         self.cooldown = True
-                if keys[K_w] and not self.up:
+                if keys[controls["up"]] and not self.up:
                     self.up = True
-                elif keys[K_s] and not self.down:
+                elif keys[controls["down"]] and not self.down:
                     self.down = True
-                elif keys[K_a] and not self.left:
+                elif keys[controls["left"]] and not self.left:
                     self.left = True
-                elif keys[K_d] and not self.right:
+                elif keys[controls["right"]] and not self.right:
                     self.right = True
             if event.type == KEYUP:
                 if not mods & KMOD_SHIFT and self.action1:
