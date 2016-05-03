@@ -7,6 +7,8 @@ import socket
 import threading
 import textwrap
 import time
+
+print ("hello doug")
 # Tell the client to kill everything upon reconnect ;)
 class Client():
     def __init__(self):
