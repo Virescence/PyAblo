@@ -7,6 +7,7 @@ import socket
 import threading
 import textwrap
 import time
+import controls_dict
 
 print ("hello doug")
 # Tell the client to kill everything upon reconnect ;)
@@ -615,7 +616,7 @@ class Screen():
         self.screen = pygame.display.set_mode(self.screen)
 
 screen = Screen()
-
+controls = controls_dict.cont_imp()
 class Map():
     def __init__(self):
         self.map = []
