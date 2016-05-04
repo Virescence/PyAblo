@@ -8,9 +8,13 @@ import threading
 import textwrap
 import time
 import controls_dict
+import pyganim
+import anichoose
 
 print ("hello doug")
 # Tell the client to kill everything upon reconnect ;)
+anichoose.DefineAnimations()
+
 class Client():
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -249,6 +253,9 @@ class Client_Hero(Entity):
         self.image = pygame.Surface([self.width, self.height])
         self.image.fill((color))
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        self.anim = anichoose.pick(True, True, False, False)
+            # only putting this here while testing as static
+        print(self, self.image, self.anim)
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
         self.previous_x = None
         self.previous_y = None
@@ -719,6 +726,7 @@ client_listen_thread.daemon = True
 client_listen_thread.start()
 
 
+
 while running:
     clock.tick(60)
     screen.screen.fill(Color(0, 0, 0))
@@ -769,6 +777,12 @@ while running:
         screen.screen.blit(entity.image, entity.rect)
     for entity in heroes:
         screen.screen.blit(entity.image, camera.apply(entity))
+        # try:
+            # entity.anim.play()
+            # entity.anim.blit(screen, entity.rect)
+        # except AttributeError:
+            # print("I could'na do it. There was no anim.")
+        ### It looks like I need the animations to be defined in the main loop and then I can leave pick as a function
     for entity in names:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in loading_images:
@@ -781,6 +795,19 @@ while running:
         screen.screen.blit(entity.image, entity.rect)
     for entity in live_chat:
         screen.screen.blit(entity.image, entity.rect)
+
+    try:
+        print("LINE 794", game.hero.anim)
+    except:
+        s = 5
+    try:
+        game.hero.anim.play()
+    except:
+        print("no play")
+    try:
+        game.hero.anim.blit(screen, game.hero.rect)
+    except:
+        print("no animation")
 
     pygame.display.flip()
 

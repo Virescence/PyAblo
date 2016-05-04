@@ -4,9 +4,46 @@ import pyganim
 
 pygame.init()
 
+def DefineAnimations():
+    # Can I define animations for the main loop here?
+    # load the "standing" sprites (these are single images, not animations)
+    front_standing = pygame.image.load('resources/img/crono_front.gif')
+    back_standing = pygame.image.load('resources/img/crono_back.gif')
+    left_standing = pygame.image.load('resources/img/crono_left.gif')
+    right_standing = pygame.transform.flip(left_standing, True, False)
+
+    # creating the PygAnimation objects for walking/running in all directions
+    animTypes = 'back_run back_walk front_run front_walk left_run left_walk'.split()
+    animObjs = {}
+    for animType in animTypes:
+        imagesAndDurations = [('resources/img/crono_%s.%s.gif' % (animType, str(num).rjust(3, '0')), 100) for num in
+                              range(6)]
+        animObjs[animType] = pyganim.PygAnimation(imagesAndDurations)
+
+    # create the right-facing sprites by copying and flipping the left-facing sprites
+    animObjs['right_walk'] = animObjs['left_walk'].getCopy()
+    animObjs['right_walk'].flip(True, False)
+    animObjs['right_walk'].makeTransformsPermanent()
+    animObjs['right_run'] = animObjs['left_run'].getCopy()
+    animObjs['right_run'].flip(True, False)
+    animObjs['right_run'].makeTransformsPermanent()
+    animObjs['front_standing'] = front_standing
+    animObjs['back_standing'] = back_standing
+    animObjs['left_standing'] = left_standing
+    animObjs['right_standing'] = right_standing
+
+    # have the animation objects managed by a conductor.
+    # With the conductor, we can call play() and stop() on all the animtion
+    # objects at the same time, so that way they'll always be in sync with each
+    # other.
+    # moveConductor = pyganim.PygConductor(animObjs)
+
+    WHITE = (255, 255, 255)
+    BGCOLOR = (100, 50, 50)
+
 def pick(grounded, right, left, action1):
 
-    # load the "standing" sprites (these are single images, not animations)
+    '''# load the "standing" sprites (these are single images, not animations)
     front_standing = pygame.image.load('resources/img/crono_front.gif')
     back_standing = pygame.image.load('resources/img/crono_back.gif')
     left_standing = pygame.image.load('resources/img/crono_left.gif')
@@ -38,9 +75,8 @@ def pick(grounded, right, left, action1):
     # moveConductor = pyganim.PygConductor(animObjs)
 
     WHITE = (255, 255, 255)
-    BGCOLOR = (100, 50, 50)
+    BGCOLOR = (100, 50, 50)'''
 
-    print(animObjs)
     return animObjs['front_walk']
 
 
