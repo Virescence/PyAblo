@@ -13,7 +13,14 @@ import anichoose
 
 print ("hello doug")
 # Tell the client to kill everything upon reconnect ;)
-anichoose.DefineAnimations()
+
+# Am I wasting memory by loading and playing all images?
+defineanimations = anichoose.DefineAnimations()
+for key in defineanimations.animObjs:
+    try:
+        defineanimations.animObjs[key].play()
+    except:
+        print(key, " was a still")
 
 class Client():
     def __init__(self):
@@ -222,19 +229,33 @@ class Remote_Hero(Entity):
         self.height = height
         self.width = width
         self.color = color
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((color))
+        # self.image = pygame.Surface([self.width, self.height])
+        # self.image.fill((color))
+        self.image = defineanimations.keyimg
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        self.anim = defineanimations.animObjs['back_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
         heroes.add(self)
         game.id_to_object[self.obj_id] = self
+        self.change_x = 0
+        self.change_y = 0
 
     def update(self, pos_x, pos_y):
+        self.change_x = pos_x - self.rect.x
+        print("self.change_x= %s, self.rect.x= %s, pos_x %s" % (self.change_x, self.rect.x, pos_x))
+        self.change_y = pos_y - self.rect.y
+        print("self.change_y= %s, self.rect.y= %s, pos_y %s" % (self.change_y, self.rect.y, pos_y))
         self.rect.x = pos_x
         self.pos_x = pos_x
         self.rect.y = pos_y
         self.pos_y = pos_y
         self.hero_name.update(self.pos_x, self.pos_y)
+
+        anichoice = anichoose.pick(self.change_x, self.change_y)
+        self.anim = defineanimations.animObjs[anichoice]
+        #Not sure how to keep previous position data
+        #What if, in addition to position, we send the change variables over also.
+        #Else, maybe it's ok for the sprites to look like they're sprinting to get to wherever they are if there's lag!
 
 class Client_Hero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):
@@ -245,17 +266,15 @@ class Client_Hero(Entity):
         self.obj_id = obj_id
         self.pos_x = pos_x
         self.pos_y = pos_y
-        self.height = height
-        self.width = width
+        self.height = 76 # self.height = height
+        self.width = 40 # self.width = width
         self.color = color
-        # self.image = pygame.image.load('resources\Male1.gif')
+        self.image = defineanimations.keyimg
         # self.image.set_colorkey((255, 255, 255), RLEACCEL)
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((color))
+        # self.image = pygame.Surface([self.width, self.height])
+        # self.image.fill((color))
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
-        self.anim = anichoose.pick(True, True, False, False)
-            # only putting this here while testing as static
-        print(self, self.image, self.anim)
+        self.anim = defineanimations.animObjs['front_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
         self.previous_x = None
         self.previous_y = None
@@ -363,6 +382,9 @@ class Client_Hero(Entity):
                 if self.change_y < 0:
                     self.rect.top = x.rect.bottom
                     self.change_y = 0
+
+        anichoice = anichoose.pick(self.change_x, self.change_y)
+        self.anim = defineanimations.animObjs[anichoice]
 
         self.hero_name.update(self.pos_x, self.pos_y)
         if self.rect.x != self.previous_x or self.rect.y != self.previous_y:
@@ -777,12 +799,12 @@ while running:
         screen.screen.blit(entity.image, entity.rect)
     for entity in heroes:
         screen.screen.blit(entity.image, camera.apply(entity))
-        # try:
-            # entity.anim.play()
-            # entity.anim.blit(screen, entity.rect)
-        # except AttributeError:
-            # print("I could'na do it. There was no anim.")
-        ### It looks like I need the animations to be defined in the main loop and then I can leave pick as a function
+        try:
+            entity.anim.play()
+            # entity.anim.blit(screen.screen, entity.rect)
+            entity.anim.blit(screen.screen, camera.apply(entity))
+        except:
+            print("I could'na do it. There was no anim.")
     for entity in names:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in loading_images:
@@ -795,19 +817,6 @@ while running:
         screen.screen.blit(entity.image, entity.rect)
     for entity in live_chat:
         screen.screen.blit(entity.image, entity.rect)
-
-    try:
-        print("LINE 794", game.hero.anim)
-    except:
-        s = 5
-    try:
-        game.hero.anim.play()
-    except:
-        print("no play")
-    try:
-        game.hero.anim.blit(screen, game.hero.rect)
-    except:
-        print("no animation")
 
     pygame.display.flip()
 
