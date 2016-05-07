@@ -78,7 +78,7 @@ class Client():
             # object_handler(data)
 
     def remoteobjectCreator(self, data):
-        if not data["obj_id"] == game.hero.obj_id:
+        if not data["obj_id"] in game.id_to_object:
             Remote_Hero(data["pos_x"], data["pos_y"], data["width"], data["height"], data["color"], data["name"],
                         data["obj_id"])
 
