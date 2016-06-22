@@ -216,7 +216,7 @@ class HeroName(Entity):
         names.add(self)
 
     def update(self, pos_x, pos_y):
-        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 50)
+        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 120)
 
 class Remote_Hero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):  # add NAME
@@ -286,10 +286,12 @@ class Client_Hero(Entity):
         self.action2 = False
         self.action3 = False
         self.grounded = False
-        self.cooldown = False
+        self.cooldown1 = False
+        self.cooldown2 = False
         self.gcd = 3
         self.gravity_staller = 5 + time.time()
-        self.dt = time.time() + self.gcd
+        self.dt1 = time.time() + self.gcd
+        self.dt2 = time.time() + self.gcd
         self.change_x = 0
         self.change_y = 0
         heroes.add(self)
@@ -314,11 +316,15 @@ class Client_Hero(Entity):
                 self.change_y += .5
 
     def update(self):
-        if self.cooldown:
-            if time.time() > self.dt:
-                self.dt = time.time() + self.gcd
-                self.cooldown = False
-                # print(self.cooldown)
+        if self.cooldown1:
+            if time.time() > self.dt1:
+                self.dt1 = time.time() + self.gcd
+                self.cooldown1 = False
+
+        if self.cooldown2:
+            if time.time() > self.dt2:
+                self.dt2 = time.time() + self.gcd
+                self.cooldown2 = False
 
         self.gravity()
         self.moving_left = False
@@ -398,9 +404,9 @@ class Client_Hero(Entity):
     def actionfsm(self, event=None, keys=None, mods=None,  chatting=False):
             if event.type == KEYDOWN:
                 if mods & KMOD_SHIFT and not self.action1:
-                    if not self.cooldown:
+                    if not self.cooldown1:
                         self.action1 = True
-                        self.cooldown = True
+                        self.cooldown1 = True
                 if keys[controls["up"]] and not self.up:
                     self.up = True
                 elif keys[controls["down"]] and not self.down:
@@ -409,6 +415,10 @@ class Client_Hero(Entity):
                     self.left = True
                 elif keys[controls["right"]] and not self.right:
                     self.right = True
+                elif keys[controls["button2"]] and not self.action2:
+                    self.action2 = True
+                    self.cooldown2 = True
+
             if event.type == KEYUP:
                 if not mods & KMOD_SHIFT and self.action1:
                     self.action1 = False
@@ -420,6 +430,24 @@ class Client_Hero(Entity):
                     self.left = False
                 elif event.key == pygame.K_d and self.right:
                     self.right = False
+
+
+class Attack_Object(Entity):
+    def __init__(self, daddy, width, height, color, direction):
+        self.pos_x = daddy.rect.x
+        self.pos_y = daddy.rect.y
+        self.width = width
+        self.height = height
+        self.color = color
+        self.direction = direction
+
+    def update(self):
+        if self.direction == "left":
+            self.rect.x += -5
+        if self.direction == "right":
+            self.rect.x += 5
+
+        
 
 class Tile(Entity):
     def __init__(self, pos_x, pos_y, tile):
