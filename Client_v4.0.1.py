@@ -11,8 +11,6 @@ import controls_dict
 import pyganim
 import anichoose
 
-print ("hello doug")
-# Tell the client to kill everything upon reconnect ;)
 
 # Am I wasting memory by loading and playing all images?
 defineanimations = anichoose.DefineAnimations()
@@ -257,9 +255,9 @@ class Remote_Hero(Entity):
         #What if, in addition to position, we send the change variables over also.
         #Else, maybe it's ok for the sprites to look like they're sprinting to get to wherever they are if there's lag!
 
+
 class Client_Hero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):
-        print("line 231")
         super(Client_Hero, self).__init__()
         self.name = name
         game.client_list.append(self.name)
@@ -288,10 +286,12 @@ class Client_Hero(Entity):
         self.grounded = False
         self.cooldown1 = False
         self.cooldown2 = False
+        self.current_direction = "Right"
         self.gcd = 3
+        self.atk_cd = .25
         self.gravity_staller = 5 + time.time()
         self.dt1 = time.time() + self.gcd
-        self.dt2 = time.time() + self.gcd
+        self.dt2 = time.time() + self.atk_cd
         self.change_x = 0
         self.change_y = 0
         heroes.add(self)
@@ -323,7 +323,7 @@ class Client_Hero(Entity):
 
         if self.cooldown2:
             if time.time() > self.dt2:
-                self.dt2 = time.time() + self.gcd
+                self.dt2 = time.time() + self.atk_cd
                 self.cooldown2 = False
 
         self.gravity()
@@ -336,6 +336,7 @@ class Client_Hero(Entity):
             self.change_y += .5
         elif self.left:
             self.moving_left = True
+            self.current_direction = "left"
             if self.change_x < -20:
                 self.change_x += 6
             elif self.change_x < -7:
@@ -344,6 +345,7 @@ class Client_Hero(Entity):
                 self.change_x += -1
         elif self.right:
             self.moving_right = True
+            self.current_direction = "right"
             if self.change_x > 20:
                 self.change_x += -6
             elif self.change_x > 7:
@@ -361,6 +363,11 @@ class Client_Hero(Entity):
                 self.change_x += -25
             if self.moving_right:
                 self.change_x += 25
+
+        if self.action2:
+            self.action2 = False
+            Attack_Object(self, 5, 2, (255, 255, 255), self.current_direction)
+
         self.rect.x += self.change_x
         col_list = pygame.sprite.spritecollide(self, collide, False)
         if len(col_list) == 0:
@@ -416,8 +423,9 @@ class Client_Hero(Entity):
                 elif keys[controls["right"]] and not self.right:
                     self.right = True
                 elif keys[controls["button2"]] and not self.action2:
-                    self.action2 = True
-                    self.cooldown2 = True
+                    if not self.cooldown2:
+                        self.action2 = True
+                        self.cooldown2 = True
 
             if event.type == KEYUP:
                 if not mods & KMOD_SHIFT and self.action1:
@@ -434,20 +442,27 @@ class Client_Hero(Entity):
 
 class Attack_Object(Entity):
     def __init__(self, daddy, width, height, color, direction):
+        super(Attack_Object, self).__init__()
         self.pos_x = daddy.rect.x
         self.pos_y = daddy.rect.y
-        self.width = width
-        self.height = height
         self.color = color
         self.direction = direction
+        self.distance_traveled = 0
+        self.image = pygame.Surface([width, height])
+        self.image.fill((color))
+        self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        heroes.add(self)
+        attk_objects.add(self)
 
     def update(self):
+        if self.distance_traveled > 500:
+            self.kill()
+            return None
         if self.direction == "left":
-            self.rect.x += -5
-        if self.direction == "right":
-            self.rect.x += 5
-
-        
+            self.rect.x += -25
+        elif self.direction == "right":
+            self.rect.x += 25
+        self.distance_traveled += 25
 
 class Tile(Entity):
     def __init__(self, pos_x, pos_y, tile):
@@ -468,8 +483,10 @@ class Tile(Entity):
             tiles.add(self)
             collide.add(self)
 
-class Attack(Entity):
+
+class Attack(Entity): #OOOOLLLLLDDDDDDD
     def __init__(self, pos_x, pos_y, width, height, color, obj_id=None):
+        super(Attack, self).__init__()
         self.obj_id = obj_id
         self.pos_x = pos_x
         self.pos_y = pos_y
@@ -484,7 +501,8 @@ class Attack(Entity):
         self.rect.x = pos_x
         self.pos_x = pos_x
         self.rect.y = pos_y
-        self.pos_y = pos_ya
+        self.pos_y = pos_y
+
 
 class ClientFSM():
     def __init__(self):
@@ -596,6 +614,7 @@ class ClientFSM():
             chatclass.username = self.message
             self.message = ""
 
+
 class ActionFSM():
     def __init__(self):
         self.up = False
@@ -650,6 +669,7 @@ class ActionFSM():
         client.sendData("*^LF")
         client.sendData("*^RF")
 
+
 class Object_Identity:
     def __init__(self):
         self.objects = {}
@@ -664,8 +684,9 @@ class Object_Identity:
 # Initialize PyGame
 pygame.init()
 
+
 # Screen Settings
-class Screen():
+class Screen:
     def __init__(self):
         self.screen_x = 1200
         self.screen_y = 700
@@ -674,7 +695,9 @@ class Screen():
 
 screen = Screen()
 controls = controls_dict.cont_imp()
-class Map():
+
+
+class Map:
     def __init__(self):
         self.map = []
         self.complete = False
@@ -700,6 +723,7 @@ class Map():
 
 clientmap = Map()
 
+
 class Camera(object):
     def __init__(self, camera_func, width, height):
         self.camera_func = camera_func
@@ -710,6 +734,7 @@ class Camera(object):
 
     def update(self, target):
         self.state = self.camera_func(self.state, target.rect)
+
 
 def simple_camera(camera, target_rect):
     l, t, _, _ = target_rect
@@ -734,7 +759,7 @@ loading_images = pygame.sprite.Group()
 names = pygame.sprite.Group()
 not_type = pygame.sprite.Group()
 live_chat = pygame.sprite.Group()
-
+attk_objects = pygame.sprite.Group()
 
 
 # Initialize PyGame's key_repeat
@@ -818,7 +843,7 @@ while running:
         camera.update(game.hero)
         screen.screen.blit(background, (-1000, -1000))
         # screen.screen.blit(entity.image, camera.apply(entity)) * new method
-        # screen.screen.blit(entity.image, entity.rect) *how it used to be
+        # screen.screen.blit(entity.image, entity.rect) *how it used to b
     for entity in tiles:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in ui_pictures:
@@ -833,6 +858,8 @@ while running:
             entity.anim.blit(screen.screen, camera.apply(entity))
         except:
             print("I could'na do it. There was no anim.")
+    for entity in attk_objects:
+        entity.update()
     for entity in names:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in loading_images:
