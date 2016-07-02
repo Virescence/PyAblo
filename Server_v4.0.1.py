@@ -39,6 +39,12 @@ class Server():
             for client in self.client_address_list:
                 self.sock.sendto(data, client)
 
+    def send_except(self, data, addr):
+        for client in self.client_address_list:
+            if client != addr:
+                self.sock.sendto(data, client)
+
+
     def dataHandler(self, data, addr):
         data = data.decode()
         if data[0:2] == "^^":
@@ -55,8 +61,11 @@ class Server():
             data = data[2:]
             data = json.loads(data)
             self.remoteobjectHandler(data, addr)
-        elif data[0:2] == "**":
-            self.clientHandler(identifier.object_dict[int(data[2:])], addr)
+        # elif data[0:2] == "**":
+            # self.clientHandler(identifier.object_dict[int(data[2:])], addr)
+        elif data[0:4] == "^ATK":
+            self.send_except(data.encode(), addr)
+
             
     def new_connection(self, data, addr):
         data = data.decode()
