@@ -11,7 +11,7 @@ import controls_dict
 import pyganim
 import anichoose
 
-
+# RICKY, CLEAN THIS UP, SO MESSY :( :( :( :(
 # Am I wasting memory by loading and playing all images?
 defineanimations = anichoose.DefineAnimations()
 for key in defineanimations.animObjs:
@@ -19,7 +19,7 @@ for key in defineanimations.animObjs:
         defineanimations.animObjs[key].play()
     except:
         print(key, " was a still")
-
+# CLEAN ME & && & * * * & ^ ^^
 
 class Client:
     def __init__(self):
@@ -144,7 +144,7 @@ class Chat:
 class Game:
     def __init__(self):
         self.font1 = pygame.font.Font('resources/Fonts/courier.ttf', 16)
-        self.font2 = pygame.font.Font('resources/Fonts/BEBAS.ttf', 14)
+        self.font2 = pygame.font.Font('resources/Fonts/Pixel.ttf', 14)
         self.hero = None
         self.client_list = []
         self.obj_list = []
@@ -231,10 +231,27 @@ class HeroName(Entity):
         self.font = game.font2
         self.image = self.font.render(self.name, True, (255, 255, 255))
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
-        names.add(self)
+        nameplates.add(self)
 
-    def update(self, pos_x, pos_y):
+    def update(self):
         self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 120)
+
+
+class HealthBar(Entity):
+    def __init__(self, daddy):
+        print("HP INIT")
+        super(HealthBar, self).__init__()
+        self.daddy = daddy
+        self.pos_x = daddy.pos_x
+        self.pos_y = daddy.pos_y
+        print("made it this far0")
+        self.image = pygame.image.load('resources/Health/Full.png')
+        print("made it this far1")
+        self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        nameplates.add(self)
+
+    def update(self):
+        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] + 200)
 
 
 class RemoteHero(Entity):
@@ -255,6 +272,7 @@ class RemoteHero(Entity):
         self.anim = defineanimations.animObjs['back_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
         heroes.add(self)
+        remote_heroes.add(self)
         game.id_to_object[self.obj_id] = self
         self.change_x = 0
         self.change_y = 0
@@ -268,7 +286,7 @@ class RemoteHero(Entity):
         self.pos_x = pos_x
         self.rect.y = pos_y
         self.pos_y = pos_y
-        self.hero_name.update(self.pos_x, self.pos_y)
+        self.hero_name.update()
 
         anichoice = anichoose.pick(self.change_x, self.change_y)
         self.anim = defineanimations.animObjs[anichoice]
@@ -289,12 +307,12 @@ class ClientHero(Entity):
         self.width = 40 # self.width = width
         self.color = color
         self.image = defineanimations.keyimg
-        # self.image.set_colorkey((255, 255, 255), RLEACCEL)
-        # self.image = pygame.Surface([self.width, self.height])
-        # self.image.fill((color))
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         self.anim = defineanimations.animObjs['front_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
+        print("before hp")
+        self.health_bar = HealthBar(self)
+        print("after hp")
         self.previous_x = None
         self.previous_y = None
         self.up = False
@@ -318,6 +336,7 @@ class ClientHero(Entity):
         heroes.add(self)
         self.object_dict = {"pos_x": self.rect.x, "pos_y": self.rect.y, "width": self.width, "height": self.height,
                             "color": self.color, "name": self.name, "obj_id": self.obj_id}
+        print("hero created")
 
     def assign_obj_id(self, obj_id): # depreciated
         print("assigned")
@@ -419,7 +438,8 @@ class ClientHero(Entity):
         anichoice = anichoose.pick(self.change_x, self.change_y)
         self.anim = defineanimations.animObjs[anichoice]
 
-        self.hero_name.update(self.pos_x, self.pos_y)
+        self.hero_name.update()
+        self.health_bar.update()
         if self.rect.x != self.previous_x or self.rect.y != self.previous_y:
             self.previous_x = self.rect.x
             self.previous_y = self.rect.y
@@ -463,10 +483,10 @@ class ClientHero(Entity):
 class AttackObject(Entity):
     def __init__(self, daddy, direction):
         super(AttackObject, self).__init__()
+        self.direction = direction
         self.pos_x = daddy.rect.x + 15
         self.pos_y = daddy.rect.y + 30
         self.color = (100, 255, 0)
-        self.direction = direction
         self.distance_traveled = 0
         self.image = pygame.Surface([5, 2])
         self.image.fill(self.color)
@@ -484,6 +504,11 @@ class AttackObject(Entity):
         elif self.direction == "right":
             self.rect.x += 25
         self.distance_traveled += 25
+        target = pygame.sprite.spritecollideany(self, remote_heroes)
+        if target:
+            print("hit!")
+            self.kill()
+
 
 
 class RemoteAttackObject(Entity):
@@ -509,7 +534,10 @@ class RemoteAttackObject(Entity):
         elif self.direction == "right":
             self.rect.x += 25
         self.distance_traveled += 25
-
+        target = pygame.sprite.spritecollideany(self, heroes)
+        if target:
+            print("hit!")
+            self.kill()
 
 class Tile(Entity):
     def __init__(self, pos_x, pos_y, tile):
@@ -800,12 +828,14 @@ ui_elements = pygame.sprite.Group()
 ui_text = pygame.sprite.Group()
 ui_pictures = pygame.sprite.Group()
 heroes = pygame.sprite.Group()
+remote_heroes = pygame.sprite.Group()
 chat = pygame.sprite.Group()
 loading_images = pygame.sprite.Group()
-names = pygame.sprite.Group()
+nameplates = pygame.sprite.Group()
 not_type = pygame.sprite.Group()
 live_chat = pygame.sprite.Group()
 attk_objects = pygame.sprite.Group()
+
 
 
 # Initialize PyGame's key_repeat
@@ -907,7 +937,7 @@ while running:
             pass
     for entity in attk_objects:
         entity.update()
-    for entity in names:
+    for entity in nameplates:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in loading_images:
         screen.screen.blit(entity.image, entity.rect)

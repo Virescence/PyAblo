@@ -222,10 +222,7 @@ class Hero(Entity):
         server.id_to_dict[self.obj_id]["pos_x"] = self.rect.x
         server.id_to_dict[self.obj_id]["pos_y"] = self.rect.y
         server.send(("*^" + json.dumps([[self.rect.x, self.rect.y], self.obj_id])).encode())
-        # self.gameserver.client_sdd[self.addr]["pos_x"] = self.rect.x
-        # self.gameserver.client_dd[self.addr]["pos_y"] = self.rect.y
-        # self.gameserver.client_sdd[self.addr]["pos_y"] = self.rect.y
-        # self.gameserver.clientHandler(self.gameserver.client_sdd[self.addr])
+
 
     def gravity(self):
         if self.grounded:
