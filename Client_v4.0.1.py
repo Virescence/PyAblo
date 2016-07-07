@@ -18,7 +18,7 @@ for key in defineanimations.animObjs:
     try:
         defineanimations.animObjs[key].play()
     except:
-        print(key, " was a still")
+        pass
 # CLEAN ME & && & * * * & ^ ^^
 
 class Client:
@@ -35,7 +35,6 @@ class Client:
         while True:
             try:
                 data = self.sock.recv(8192)
-                print("Recv data: " + repr(data))
                 if data:
                     self.dataHandler(data)
             except Exception as e:
@@ -60,7 +59,6 @@ class Client:
                 clientmap.update(data)
 
         elif data == b'HeroReq':
-            print(data)
             client.sendData("INIT" + json.dumps(game.hero.object_dict))
 
         elif data[:2] == b'>>':
@@ -82,7 +80,7 @@ class Client:
 
 
         else:
-            print("data_handler isn't sure what to do with this: " + repr(data))
+            print("UNKNOWN DATA WHY ARE YOU GIVING THIS TO ME")
             # data = data.decode()
             # data = json.loads(data)
             # object_handler(data)
@@ -239,14 +237,11 @@ class HeroName(Entity):
 
 class HealthBar(Entity):
     def __init__(self, daddy):
-        print("HP INIT")
         super(HealthBar, self).__init__()
         self.daddy = daddy
         self.pos_x = daddy.pos_x
         self.pos_y = daddy.pos_y
-        print("made it this far0")
         self.image = pygame.image.load('resources/Health/Full.png')
-        print("made it this far1")
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         nameplates.add(self)
 
@@ -279,9 +274,7 @@ class RemoteHero(Entity):
 
     def update(self, pos_x, pos_y):
         self.change_x = pos_x - self.rect.x
-        # print("self.change_x= %s, self.rect.x= %s, pos_x %s" % (self.change_x, self.rect.x, pos_x))
         self.change_y = pos_y - self.rect.y
-        # print("self.change_y= %s, self.rect.y= %s, pos_y %s" % (self.change_y, self.rect.y, pos_y))
         self.rect.x = pos_x
         self.pos_x = pos_x
         self.rect.y = pos_y
@@ -310,9 +303,8 @@ class ClientHero(Entity):
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         self.anim = defineanimations.animObjs['front_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
-        print("before hp")
         self.health_bar = HealthBar(self)
-        print("after hp")
+        self.hp = 10
         self.previous_x = None
         self.previous_y = None
         self.up = False
@@ -336,10 +328,8 @@ class ClientHero(Entity):
         heroes.add(self)
         self.object_dict = {"pos_x": self.rect.x, "pos_y": self.rect.y, "width": self.width, "height": self.height,
                             "color": self.color, "name": self.name, "obj_id": self.obj_id}
-        print("hero created")
 
     def assign_obj_id(self, obj_id): # depreciated
-        print("assigned")
         self.obj_id = int(obj_id)
         self.object_dict = {"pos_x": self.rect.x, "pos_y": self.rect.y, "width": self.width, "height": self.height,
                             "color": self.color, "name": self.name, "obj_id": self.obj_id}
@@ -479,19 +469,25 @@ class ClientHero(Entity):
                 elif event.key == pygame.K_d and self.right:
                     self.right = False
 
+    def damagetaken(self, damage):
+        self.hp -= damage
+        if self.hp < 1:
+            self.kill()
 
 class AttackObject(Entity):
     def __init__(self, daddy, direction):
         super(AttackObject, self).__init__()
         self.direction = direction
-        self.pos_x = daddy.rect.x + 15
+        if self.direction == "left":
+            self.pos_x = daddy.rect.midleft[0] + 10
+        else:
+            self.pos_x = daddy.rect.midright[0] + -10
         self.pos_y = daddy.rect.y + 30
         self.color = (100, 255, 0)
         self.distance_traveled = 0
         self.image = pygame.Surface([5, 2])
         self.image.fill(self.color)
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
-        heroes.add(self)
         attk_objects.add(self)
         client.sendData("^ATK" + json.dumps([self.pos_x, self.pos_y, self.direction]))
 
@@ -504,11 +500,8 @@ class AttackObject(Entity):
         elif self.direction == "right":
             self.rect.x += 25
         self.distance_traveled += 25
-        target = pygame.sprite.spritecollideany(self, remote_heroes)
-        if target:
-            print("hit!")
+        if pygame.sprite.spritecollideany(self, remote_heroes):
             self.kill()
-
 
 
 class RemoteAttackObject(Entity):
@@ -522,22 +515,22 @@ class RemoteAttackObject(Entity):
         self.image = pygame.Surface([5, 2])
         self.image.fill(self.color)
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
-        heroes.add(self)
         attk_objects.add(self)
 
     def update(self):
         if self.distance_traveled > 500:
             self.kill()
-            return None
-        if self.direction == "left":
+        elif self.direction == "left":
             self.rect.x += -25
         elif self.direction == "right":
             self.rect.x += 25
         self.distance_traveled += 25
         target = pygame.sprite.spritecollideany(self, heroes)
         if target:
-            print("hit!")
+            if target == game.hero:
+                game.hero.damagetaken(2)
             self.kill()
+
 
 class Tile(Entity):
     def __init__(self, pos_x, pos_y, tile):
@@ -627,9 +620,6 @@ class ClientFSM:
     def authenticate(self, message):
         try:
             message = json.loads(message)
-            print("line 484")
-            print(message)
-            print(type(message))
             self.logged_in = True
             game.make_hero(75, 50, 15, 30, ((random.randint(0, 200)), (random.randint(0, 200)),
                                             (random.randint(0, 200))), message[0], message[1])
@@ -933,10 +923,10 @@ while running:
             # entity.anim.blit(screen.screen, entity.rect)
             entity.anim.blit(screen.screen, camera.apply(entity))
         except:
-            # print("I could'na do it. There was no anim.")
             pass
     for entity in attk_objects:
         entity.update()
+        screen.screen.blit(entity.image, camera.apply(entity))
     for entity in nameplates:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in loading_images:
