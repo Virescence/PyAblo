@@ -241,13 +241,13 @@ class HealthBar(Entity):
         self.daddy = daddy
         self.pos_x = daddy.pos_x
         self.pos_y = daddy.pos_y
-        self.image = pygame.image.load('resources/Health/Full.png')
+        self.image = pygame.image.load('resources/Health/10.png')
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         nameplates.add(self)
 
     def update(self):
         self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] + 200)
-
+        self.image = pygame.image.load('resources/Health/' + repr(self.daddy.curr_hp) + '.png')
 
 class RemoteHero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):  # add NAME
@@ -304,7 +304,8 @@ class ClientHero(Entity):
         self.anim = defineanimations.animObjs['front_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
         self.health_bar = HealthBar(self)
-        self.hp = 10
+        self.max_hp = 10
+        self.curr_hp = self.max_hp
         self.previous_x = None
         self.previous_y = None
         self.up = False
@@ -320,9 +321,12 @@ class ClientHero(Entity):
         self.current_direction = "Right"
         self.gcd = 3
         self.atk_cd = .25
+        self.hp_cd = 3
         self.gravity_staller = 5 + time.time()
         self.dt1 = time.time() + self.gcd
         self.dt2 = time.time() + self.atk_cd
+        self.hp_dt = time.time()
+        self.recharging = False
         self.change_x = 0
         self.change_y = 0
         heroes.add(self)
@@ -345,6 +349,11 @@ class ClientHero(Entity):
             else:
                 self.change_y += .5
 
+    def health_recharge_fsm(self):
+        if self.curr_hp < self.max_hp:
+            if time.time() >= self.hp_dt + self.hp_cd:
+                self.curr_hp += 1
+
     def update(self):
         if self.cooldown1:
             if time.time() > self.dt1:
@@ -356,6 +365,7 @@ class ClientHero(Entity):
                 self.dt2 = time.time() + self.atk_cd
                 self.cooldown2 = False
 
+        self.health_recharge_fsm()
         self.gravity()
         self.moving_left = False
         self.moving_right = False
@@ -470,9 +480,11 @@ class ClientHero(Entity):
                     self.right = False
 
     def damagetaken(self, damage):
-        self.hp -= damage
-        if self.hp < 1:
+        self.curr_hp -= damage
+        self.hp_dt = time.time()
+        if self.curr_hp < 1:
             self.kill()
+
 
 class AttackObject(Entity):
     def __init__(self, daddy, direction):
