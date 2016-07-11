@@ -16,7 +16,7 @@ class Server():
     def listen(self):
         while True:
             try:
-                print("test")
+                print("line 19")
                 data, addr = self.sock.recvfrom(1024)
                 data = data.decode()
                 data = json.loads(data)

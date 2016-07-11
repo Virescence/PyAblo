@@ -7,7 +7,7 @@ controls = {
     "left": K_a,
     "right": K_d,
     "button1": K_1,
-    "button2": K_2,
+    "button2": K_SPACE,
     "button3": K_3,
 
 }

@@ -8,10 +8,20 @@ import threading
 import textwrap
 import time
 import controls_dict
+import pyganim
+import anichoose
 
-print ("hello doug")
-# Tell the client to kill everything upon reconnect ;)
-class Client():
+# RICKY, CLEAN THIS UP, SO MESSY :( :( :( :(
+# Am I wasting memory by loading and playing all images?
+defineanimations = anichoose.DefineAnimations()
+for key in defineanimations.animObjs:
+    try:
+        defineanimations.animObjs[key].play()
+    except:
+        pass
+# CLEAN ME & && & * * * & ^ ^^
+
+class Client:
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -25,7 +35,6 @@ class Client():
         while True:
             try:
                 data = self.sock.recv(8192)
-                # print("Recv data: " + repr(data))
                 if data:
                     self.dataHandler(data)
             except Exception as e:
@@ -34,22 +43,27 @@ class Client():
     def dataHandler(self, data):
         if data[:4] == b'^id^':
             data = data.decode()
+
         elif data[:4] == b'^db^':
             data = data.decode()
             chatfsm.authenticate(data[4:])
+
         elif data[:2] == b'^^':
             data = data.decode()
             chatclass.update(data[10:])
+
         elif data[:4] == b'TILE':
             if not clientmap.complete:
                 data = data.decode()
                 data = data[4:]
                 clientmap.update(data)
+
         elif data == b'HeroReq':
-            print(data)
             client.sendData("INIT" + json.dumps(game.hero.object_dict))
+
         elif data[:2] == b'>>':
             game.hero.assign_obj_id(data[2:])
+
         elif data[:2] == b'*^':
             data = data[2:].decode()
             data = json.loads(data)
@@ -60,16 +74,21 @@ class Client():
             data = json.loads(data)
             self.remoteobjectCreator(data)
 
+        elif data[:4] == b'^ATK':
+            data = json.loads(data[4:].decode())
+            RemoteAttackObject(data[0], data[1], data[2])
+
+
         else:
-            print("data_handler isn't sure what to do with this: " + repr(data))
+            print("UNKNOWN DATA WHY ARE YOU GIVING THIS TO ME")
             # data = data.decode()
             # data = json.loads(data)
             # object_handler(data)
 
     def remoteobjectCreator(self, data):
-        if not data["obj_id"] == game.hero.obj_id:
-            Remote_Hero(data["pos_x"], data["pos_y"], data["width"], data["height"], data["color"], data["name"],
-                        data["obj_id"])
+        if not data["obj_id"] in game.id_to_object:
+            RemoteHero(data["pos_x"], data["pos_y"], data["width"], data["height"], data["color"], data["name"],
+                       data["obj_id"])
 
     def remoteobjectHandler(self, data):
         pos_x = data[0][0]
@@ -78,7 +97,8 @@ class Client():
         if not obj_id == game.hero.obj_id:
             game.id_to_object[obj_id].update(pos_x, pos_y)
 
-class Chat():
+
+class Chat:
     def __init__(self):
         self.displayed_chat = []
         self.all_chat = []
@@ -112,31 +132,34 @@ class Chat():
             if line < 0:
                break
             try:
-                UI_Text(chatboxupper.rect.bottomleft[0], y_pos, self.displayed_chat[line], (255, 255, 255), "chat")
+                UIText(chatboxupper.rect.bottomleft[0], y_pos, self.displayed_chat[line], (255, 255, 255), "chat")
                 line -= 1
                 y_pos -= 18
             except:
                 break
 
-class Game():
+
+class Game:
     def __init__(self):
         self.font1 = pygame.font.Font('resources/Fonts/courier.ttf', 16)
-        self.font2 = pygame.font.Font('resources/Fonts/BEBAS.ttf', 14)
+        self.font2 = pygame.font.Font('resources/Fonts/Pixel.ttf', 14)
         self.hero = None
         self.client_list = []
         self.obj_list = []
         self.id_to_object = {}
 
     def make_hero(self, pos_x, pos_y, width, height, color, name, obj_id):
-        self.hero = Client_Hero(pos_x, pos_y, width, height, color, name, obj_id)
+        self.hero = ClientHero(pos_x, pos_y, width, height, color, name, obj_id)
+
 
 class Entity(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
 
-class UI_Element(Entity):
+
+class UIElement(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, obj_id=None):
-        super(UI_Element, self).__init__()
+        super(UIElement, self).__init__()
         self.obj_id = obj_id
         self.pos_x = pos_x
         self.pos_y = pos_y
@@ -148,13 +171,15 @@ class UI_Element(Entity):
         self.rect = self.image.get_rect(bottomleft=((self.pos_x, self.pos_y)))
         ui_elements.add(self)
 
-class UI_Base(UI_Element):
-    def __init__(self):
-        super(UI_Base, self).__init__(self)
 
-class UI_Picture(Entity):
+class UIBase(UIElement):
+    def __init__(self):
+        super(UIBase, self).__init__(self)
+
+
+class UIPicture(Entity):
     def __init__(self, pos_x, pos_y, image, loading=False):
-        super(UI_Picture, self).__init__()
+        super(UIPicture, self).__init__()
         self.pos_x = pos_x
         self.pos_y = pos_y
         self.image = pygame.image.load(image)
@@ -165,9 +190,10 @@ class UI_Picture(Entity):
         else:
             ui_pictures.add(self)
 
-class UI_Text(Entity):
+
+class UIText(Entity):
     def __init__(self, pos_x, pos_y, text, fontcolor, type):
-        super(UI_Text, self).__init__()
+        super(UIText, self).__init__()
         self.type = type
         self.text = text
         self.fontcolor = fontcolor
@@ -192,6 +218,7 @@ class UI_Text(Entity):
         if self.rect.bottomright[0] > self.max_x:
             self.rect.x -= (self.rect.bottomright[0] - self.max_x)
 
+
 class HeroName(Entity):
     def __init__(self, pos_x, pos_y, name, daddy):
         super(HeroName, self).__init__()
@@ -202,14 +229,29 @@ class HeroName(Entity):
         self.font = game.font2
         self.image = self.font.render(self.name, True, (255, 255, 255))
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
-        names.add(self)
+        nameplates.add(self)
 
-    def update(self, pos_x, pos_y):
-        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 50)
+    def update(self):
+        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 120)
 
-class Remote_Hero(Entity):
+
+class HealthBar(Entity):
+    def __init__(self, daddy):
+        super(HealthBar, self).__init__()
+        self.daddy = daddy
+        self.pos_x = daddy.pos_x
+        self.pos_y = daddy.pos_y
+        self.image = pygame.image.load('resources/Health/10.png')
+        self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        nameplates.add(self)
+
+    def update(self):
+        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] + 200)
+        self.image = pygame.image.load('resources/Health/' + repr(self.daddy.curr_hp) + '.png')
+
+class RemoteHero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):  # add NAME
-        super(Remote_Hero, self).__init__()
+        super(RemoteHero, self).__init__()
         self.name = name
         game.client_list.append(self.name)
         self.obj_id = obj_id
@@ -218,38 +260,52 @@ class Remote_Hero(Entity):
         self.height = height
         self.width = width
         self.color = color
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((color))
+        # self.image = pygame.Surface([self.width, self.height])
+        # self.image.fill((color))
+        self.image = defineanimations.keyimg
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        self.anim = defineanimations.animObjs['back_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
         heroes.add(self)
+        remote_heroes.add(self)
         game.id_to_object[self.obj_id] = self
+        self.change_x = 0
+        self.change_y = 0
 
     def update(self, pos_x, pos_y):
+        self.change_x = pos_x - self.rect.x
+        self.change_y = pos_y - self.rect.y
         self.rect.x = pos_x
         self.pos_x = pos_x
         self.rect.y = pos_y
         self.pos_y = pos_y
-        self.hero_name.update(self.pos_x, self.pos_y)
+        self.hero_name.update()
 
-class Client_Hero(Entity):
+        anichoice = anichoose.pick(self.change_x, self.change_y)
+        self.anim = defineanimations.animObjs[anichoice]
+        #Not sure how to keep previous position data
+        #What if, in addition to position, we send the change variables over also.
+        #Else, maybe it's ok for the sprites to look like they're sprinting to get to wherever they are if there's lag!
+
+
+class ClientHero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):
-        print("line 231")
-        super(Client_Hero, self).__init__()
+        super(ClientHero, self).__init__()
         self.name = name
         game.client_list.append(self.name)
         self.obj_id = obj_id
         self.pos_x = pos_x
         self.pos_y = pos_y
-        self.height = height
-        self.width = width
+        self.height = 76 # self.height = height
+        self.width = 40 # self.width = width
         self.color = color
-        # self.image = pygame.image.load('resources\Male1.gif')
-        # self.image.set_colorkey((255, 255, 255), RLEACCEL)
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((color))
+        self.image = defineanimations.keyimg
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        self.anim = defineanimations.animObjs['front_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
+        self.health_bar = HealthBar(self)
+        self.max_hp = 10
+        self.curr_hp = self.max_hp
         self.previous_x = None
         self.previous_y = None
         self.up = False
@@ -260,10 +316,17 @@ class Client_Hero(Entity):
         self.action2 = False
         self.action3 = False
         self.grounded = False
-        self.cooldown = False
+        self.cooldown1 = False
+        self.cooldown2 = False
+        self.current_direction = "Right"
         self.gcd = 3
+        self.atk_cd = .25
+        self.hp_cd = 3
         self.gravity_staller = 5 + time.time()
-        self.dt = time.time() + self.gcd
+        self.dt1 = time.time() + self.gcd
+        self.dt2 = time.time() + self.atk_cd
+        self.hp_dt = time.time()
+        self.recharging = False
         self.change_x = 0
         self.change_y = 0
         heroes.add(self)
@@ -271,7 +334,6 @@ class Client_Hero(Entity):
                             "color": self.color, "name": self.name, "obj_id": self.obj_id}
 
     def assign_obj_id(self, obj_id): # depreciated
-        print("assigned")
         self.obj_id = int(obj_id)
         self.object_dict = {"pos_x": self.rect.x, "pos_y": self.rect.y, "width": self.width, "height": self.height,
                             "color": self.color, "name": self.name, "obj_id": self.obj_id}
@@ -287,13 +349,23 @@ class Client_Hero(Entity):
             else:
                 self.change_y += .5
 
-    def update(self):
-        if self.cooldown:
-            if time.time() > self.dt:
-                self.dt = time.time() + self.gcd
-                self.cooldown = False
-                # print(self.cooldown)
+    def health_recharge_fsm(self):
+        if self.curr_hp < self.max_hp:
+            if time.time() >= self.hp_dt + self.hp_cd:
+                self.curr_hp += 1
 
+    def update(self):
+        if self.cooldown1:
+            if time.time() > self.dt1:
+                self.dt1 = time.time() + self.gcd
+                self.cooldown1 = False
+
+        if self.cooldown2:
+            if time.time() > self.dt2:
+                self.dt2 = time.time() + self.atk_cd
+                self.cooldown2 = False
+
+        self.health_recharge_fsm()
         self.gravity()
         self.moving_left = False
         self.moving_right = False
@@ -304,6 +376,7 @@ class Client_Hero(Entity):
             self.change_y += .5
         elif self.left:
             self.moving_left = True
+            self.current_direction = "left"
             if self.change_x < -20:
                 self.change_x += 6
             elif self.change_x < -7:
@@ -312,6 +385,7 @@ class Client_Hero(Entity):
                 self.change_x += -1
         elif self.right:
             self.moving_right = True
+            self.current_direction = "right"
             if self.change_x > 20:
                 self.change_x += -6
             elif self.change_x > 7:
@@ -329,6 +403,10 @@ class Client_Hero(Entity):
                 self.change_x += -25
             if self.moving_right:
                 self.change_x += 25
+
+        if self.action2:
+            self.action2 = False
+            AttackObject(self, self.current_direction)
         self.rect.x += self.change_x
         col_list = pygame.sprite.spritecollide(self, collide, False)
         if len(col_list) == 0:
@@ -357,7 +435,11 @@ class Client_Hero(Entity):
                     self.rect.top = x.rect.bottom
                     self.change_y = 0
 
-        self.hero_name.update(self.pos_x, self.pos_y)
+        anichoice = anichoose.pick(self.change_x, self.change_y)
+        self.anim = defineanimations.animObjs[anichoice]
+
+        self.hero_name.update()
+        self.health_bar.update()
         if self.rect.x != self.previous_x or self.rect.y != self.previous_y:
             self.previous_x = self.rect.x
             self.previous_y = self.rect.y
@@ -369,9 +451,9 @@ class Client_Hero(Entity):
     def actionfsm(self, event=None, keys=None, mods=None,  chatting=False):
             if event.type == KEYDOWN:
                 if mods & KMOD_SHIFT and not self.action1:
-                    if not self.cooldown:
+                    if not self.cooldown1:
                         self.action1 = True
-                        self.cooldown = True
+                        self.cooldown1 = True
                 if keys[controls["up"]] and not self.up:
                     self.up = True
                 elif keys[controls["down"]] and not self.down:
@@ -380,6 +462,11 @@ class Client_Hero(Entity):
                     self.left = True
                 elif keys[controls["right"]] and not self.right:
                     self.right = True
+                elif keys[controls["button2"]] and not self.action2:
+                    if not self.cooldown2:
+                        self.action2 = True
+                        self.cooldown2 = True
+
             if event.type == KEYUP:
                 if not mods & KMOD_SHIFT and self.action1:
                     self.action1 = False
@@ -391,6 +478,71 @@ class Client_Hero(Entity):
                     self.left = False
                 elif event.key == pygame.K_d and self.right:
                     self.right = False
+
+    def damagetaken(self, damage):
+        self.curr_hp -= damage
+        self.hp_dt = time.time()
+        if self.curr_hp < 1:
+            self.kill()
+
+
+class AttackObject(Entity):
+    def __init__(self, daddy, direction):
+        super(AttackObject, self).__init__()
+        self.direction = direction
+        if self.direction == "left":
+            self.pos_x = daddy.rect.midleft[0] + 10
+        else:
+            self.pos_x = daddy.rect.midright[0] + -10
+        self.pos_y = daddy.rect.y + 30
+        self.color = (100, 255, 0)
+        self.distance_traveled = 0
+        self.image = pygame.Surface([5, 2])
+        self.image.fill(self.color)
+        self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        attk_objects.add(self)
+        client.sendData("^ATK" + json.dumps([self.pos_x, self.pos_y, self.direction]))
+
+    def update(self):
+        if self.distance_traveled > 500:
+            self.kill()
+            return None
+        if self.direction == "left":
+            self.rect.x += -25
+        elif self.direction == "right":
+            self.rect.x += 25
+        self.distance_traveled += 25
+        if pygame.sprite.spritecollideany(self, remote_heroes):
+            self.kill()
+
+
+class RemoteAttackObject(Entity):
+    def __init__(self, pos_x, pos_y, direction):
+        super(RemoteAttackObject, self).__init__()
+        self.pos_x = pos_x
+        self.pos_y = pos_y
+        self.color = (100, 255, 0)
+        self.direction = direction
+        self.distance_traveled = 0
+        self.image = pygame.Surface([5, 2])
+        self.image.fill(self.color)
+        self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        attk_objects.add(self)
+
+    def update(self):
+        if self.distance_traveled > 500:
+            self.kill()
+        elif self.direction == "left":
+            self.rect.x += -25
+        elif self.direction == "right":
+            self.rect.x += 25
+        self.distance_traveled += 25
+        target = pygame.sprite.spritecollideany(self, heroes)
+        if target:
+            if target == game.hero:
+                game.hero.damagetaken(2)
+            self.kill()
+
 
 class Tile(Entity):
     def __init__(self, pos_x, pos_y, tile):
@@ -411,8 +563,10 @@ class Tile(Entity):
             tiles.add(self)
             collide.add(self)
 
-class Attack(Entity):
+
+class Attack(Entity): #OOOOLLLLLDDDDDDD
     def __init__(self, pos_x, pos_y, width, height, color, obj_id=None):
+        super(Attack, self).__init__()
         self.obj_id = obj_id
         self.pos_x = pos_x
         self.pos_y = pos_y
@@ -427,22 +581,23 @@ class Attack(Entity):
         self.rect.x = pos_x
         self.pos_x = pos_x
         self.rect.y = pos_y
-        self.pos_y = pos_ya
+        self.pos_y = pos_y
 
-class ClientFSM():
+
+class ClientFSM:
     def __init__(self):
         self.logged_in = False
         self.username_entered = False
         self.chatting = False
         self.message = ""
-        self.NOTTYPING = UI_Text(0, screen.screen_y - 2, "PRESS ENTER TO TYPE", (255, 0, 25), "not_type")
+        self.NOTTYPING = UIText(0, screen.screen_y - 2, "PRESS ENTER TO TYPE", (255, 0, 25), "not_type")
         self.username = None
         self.password = None
         self.map_loaded = False
         self.loading = None
-        self.loginimage = UI_Picture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
-        self.logintext = UI_Text(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
-        self.passwordtext = UI_Text(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
+        self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
+        self.logintext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
+        self.passwordtext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
 
     def update_chatting(self):
         self.chatting = not self.chatting
@@ -477,9 +632,6 @@ class ClientFSM():
     def authenticate(self, message):
         try:
             message = json.loads(message)
-            print("line 484")
-            print(message)
-            print(type(message))
             self.logged_in = True
             game.make_hero(75, 50, 15, 30, ((random.randint(0, 200)), (random.randint(0, 200)),
                                             (random.randint(0, 200))), message[0], message[1])
@@ -491,9 +643,9 @@ class ClientFSM():
             self.password = None
             self.username_entered = False
             self.loading.kill()
-            self.loginimage = UI_Picture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
-            self.logintext = UI_Text(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
-            self.passwordtext = UI_Text(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
+            self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
+            self.logintext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
+            self.passwordtext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
 
     def enter(self):
         if self.logged_in:
@@ -502,7 +654,7 @@ class ClientFSM():
                     client.sendData("^^" + chatclass.username + ": " + self.message)
                     self.message = ""
                     messagetext.update("")
-                self.NOTTYPING = UI_Text(0, screen.screen_y - 2, "PRESS ENTER TO TYPE", (255, 0, 25), "not_type")
+                self.NOTTYPING = UIText(0, screen.screen_y - 2, "PRESS ENTER TO TYPE", (255, 0, 25), "not_type")
                 self.update_chatting()
             else:
                 self.update_chatting()
@@ -514,7 +666,6 @@ class ClientFSM():
             self.logged_in = True
             self.password = self.message
             self.message = ""
-            # client.sendData("**UN**" + self.username)
 
             authtuple = [self.username, self.password]
             authtuple = ("^id^" + json.dumps(authtuple))
@@ -524,11 +675,11 @@ class ClientFSM():
             self.logintext.kill()
             self.passwordtext.kill()
 
-            self.loading = UI_Picture((screen.screen_x / 2), (screen.screen_y / 2), 'resources/loading_screen.jpg', True)
+            self.loading = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'resources/loading_screen.jpg', True)
 
             #
 
-            # game.hero = Client_Hero(75, 50, 15, 30, ((random.randint(0, 200)), (random.randint(0, 200)),
+            # game.hero = ClientHero(75, 50, 15, 30, ((random.randint(0, 200)), (random.randint(0, 200)),
                                                       # (random.randint(0, 200))), self.username)
             # client.sendData("INIT" + json.dumps(game.hero.object_dict))
             # Moved to self.map_loaded()
@@ -539,7 +690,8 @@ class ClientFSM():
             chatclass.username = self.message
             self.message = ""
 
-class ActionFSM():
+
+class ActionFSM:
     def __init__(self):
         self.up = False
         self.down = False
@@ -593,7 +745,8 @@ class ActionFSM():
         client.sendData("*^LF")
         client.sendData("*^RF")
 
-class Object_Identity:
+
+class ObjectIdentity:
     def __init__(self):
         self.objects = {}
         self.object_dict = {}
@@ -607,8 +760,9 @@ class Object_Identity:
 # Initialize PyGame
 pygame.init()
 
+
 # Screen Settings
-class Screen():
+class Screen:
     def __init__(self):
         self.screen_x = 1200
         self.screen_y = 700
@@ -617,7 +771,9 @@ class Screen():
 
 screen = Screen()
 controls = controls_dict.cont_imp()
-class Map():
+
+
+class Map:
     def __init__(self):
         self.map = []
         self.complete = False
@@ -643,6 +799,7 @@ class Map():
 
 clientmap = Map()
 
+
 class Camera(object):
     def __init__(self, camera_func, width, height):
         self.camera_func = camera_func
@@ -653,6 +810,7 @@ class Camera(object):
 
     def update(self, target):
         self.state = self.camera_func(self.state, target.rect)
+
 
 def simple_camera(camera, target_rect):
     l, t, _, _ = target_rect
@@ -672,11 +830,13 @@ ui_elements = pygame.sprite.Group()
 ui_text = pygame.sprite.Group()
 ui_pictures = pygame.sprite.Group()
 heroes = pygame.sprite.Group()
+remote_heroes = pygame.sprite.Group()
 chat = pygame.sprite.Group()
 loading_images = pygame.sprite.Group()
-names = pygame.sprite.Group()
+nameplates = pygame.sprite.Group()
 not_type = pygame.sprite.Group()
 live_chat = pygame.sprite.Group()
+attk_objects = pygame.sprite.Group()
 
 
 
@@ -684,7 +844,7 @@ live_chat = pygame.sprite.Group()
 pygame.key.set_repeat(500, 30)
 
 # Object ID Handler
-identifier = Object_Identity()
+identifier = ObjectIdentity()
 
 # Create the client
 client = Client()
@@ -697,12 +857,12 @@ pygame.display.set_caption("Pyablo II: Nord of Construction")
 
 # UI Initialization      (pos_x, pos_y, width, height, (co, lo, r))
 # THIS CAN BE CLEANED UP
-chatboxlower = UI_Element(0, screen.screen_y + 00, 250, 18,  (66, 66, 66))
-chatboxupper = UI_Element(0, screen.screen_y - 18, 250, 450, (117, 117, 117))
-# loginimage = UI_Picture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
-messagetext = UI_Text(0, screen.screen_y, "", (255, 255, 255), "live_chat")
-# logintext = UI_Text(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
-# passwordtext = UI_Text(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
+chatboxlower = UIElement(0, screen.screen_y + 00, 250, 18, (66, 66, 66))
+chatboxupper = UIElement(0, screen.screen_y - 18, 250, 450, (117, 117, 117))
+# loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
+messagetext = UIText(0, screen.screen_y, "", (255, 255, 255), "live_chat")
+# logintext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
+# passwordtext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
 
 # Clock
 clock = pygame.time.Clock()
@@ -717,6 +877,7 @@ running = True
 client_listen_thread = threading.Thread(target=client.recvData)
 client_listen_thread.daemon = True
 client_listen_thread.start()
+
 
 
 while running:
@@ -760,7 +921,7 @@ while running:
         camera.update(game.hero)
         screen.screen.blit(background, (-1000, -1000))
         # screen.screen.blit(entity.image, camera.apply(entity)) * new method
-        # screen.screen.blit(entity.image, entity.rect) *how it used to be
+        # screen.screen.blit(entity.image, entity.rect) *how it used to b
     for entity in tiles:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in ui_pictures:
@@ -769,7 +930,16 @@ while running:
         screen.screen.blit(entity.image, entity.rect)
     for entity in heroes:
         screen.screen.blit(entity.image, camera.apply(entity))
-    for entity in names:
+        try:
+            entity.anim.play()
+            # entity.anim.blit(screen.screen, entity.rect)
+            entity.anim.blit(screen.screen, camera.apply(entity))
+        except:
+            pass
+    for entity in attk_objects:
+        entity.update()
+        screen.screen.blit(entity.image, camera.apply(entity))
+    for entity in nameplates:
         screen.screen.blit(entity.image, camera.apply(entity))
     for entity in loading_images:
         screen.screen.blit(entity.image, entity.rect)
