@@ -241,13 +241,13 @@ class HealthBar(Entity):
         self.daddy = daddy
         self.pos_x = daddy.pos_x
         self.pos_y = daddy.pos_y
-        self.image = pygame.image.load('resources/Health/10.png')
+        self.image = pygame.image.load('resources/Health/H10.gif')
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         nameplates.add(self)
 
     def update(self):
-        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] + 200)
-        self.image = pygame.image.load('resources/Health/' + repr(self.daddy.curr_hp) + '.png')
+        self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 95)
+        self.image = pygame.image.load('resources/Health/H' + repr(self.daddy.curr_hp) + '.gif')
 
 class RemoteHero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):  # add NAME
