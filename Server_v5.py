@@ -3,7 +3,7 @@ import sys
 import threading
 import multiprocessing
 import time
-import pygame
+# import pygame
 import random
 import json
 import levels
@@ -44,12 +44,12 @@ class Server():
             if client != addr:
                 self.sock.sendto(data, client)
 
-
     def dataHandler(self, data, addr):
         data = data.decode()
         if data[0:2] == "^^":
             self.textHandler(data[2:])
         elif data[0:4] == "^id^":
+            print("line 52")
             data = json.loads(data[4:])
             self.authHandler(data, addr)
         elif data[0:4] == "^db^":
@@ -58,34 +58,31 @@ class Server():
             else:
                 self.successfulAuthentication(data[4:])
         elif data[0:2] == "*^":
+            print("got client movement data")
             data = data[2:]
             data = json.loads(data)
+            print("json.loaded")
             self.remoteobjectHandler(data, addr)
+            print("sent to remote object handler")
         # elif data[0:2] == "**":
             # self.clientHandler(identifier.object_dict[int(data[2:])], addr)
         elif data[0:4] == "^ATK":
             self.send_except(data.encode(), addr)
 
-            
     def new_connection(self, data, addr):
         data = data.decode()
-        print("line 65: " + repr(data))
         if data[:4] == "INIT":
             data = json.loads(data[4:])
-            print(type(data))
             self.client_address_list.append(addr)
-            print(self.client_address_list)
-            print("line 70")
             Hero(data["pos_x"], data["pos_y"], data["width"], data["height"], data["color"], data["name"],
                  data["obj_id"], addr)
-            print("line 73")
             for line in servermap.map:
                 line = "TILE" + line
-                print(line)
                 self.send(line.encode(), addr)
             for key in self.id_to_dict:
                 self.send(("^INIT^" + json.dumps(self.id_to_dict[key])).encode(), addr)
-                print(self.id_to_dict[key])
+        else:
+            self.send("HeroReq".encode(), addr)
 
     def authHandler(self, data, addr):
         data = json.dumps([data, addr]).encode()
@@ -113,14 +110,11 @@ class Server():
         pos_x = data[0][0]
         pos_y = data[0][1]
         obj_id = data[1]
+        hp = data[2]
         if obj_id not in self.id_to_object:
             self.send("HeroReq", addr)
         else:
-            self.id_to_object[obj_id].update(pos_x, pos_y)
-
-class Entity(pygame.sprite.Sprite):
-    def __init__(self):
-        pygame.sprite.Sprite.__init__(self)
+            self.id_to_object[obj_id].update(pos_x, pos_y, hp)
 
 class Client():
     def __init__(self, addr, hero_dict):
@@ -148,10 +142,9 @@ class Client():
     def username(self, name):
         self.username = name
 
-class Hero(Entity):
+class Hero(object):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id, addr):
         super(Hero, self).__init__()
-        print("hero init!!!")
         self.addr = addr
         self.name = name
         self.obj_id = obj_id
@@ -168,14 +161,15 @@ class Hero(Entity):
         self.action1 = False
         self.action2 = False
         self.action3 = False
+        self.hp = 10
         self.change_x = 0
         self.change_y = 0
         self.width = width
         self.color = color
-        self.image = pygame.Surface([self.width, self.height])
-        self.image.fill((color))
-        self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
-        heroes.add(self)
+        # self.image = pygame.Surface([self.width, self.height])
+        # self.image.fill((color))
+        # self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
+        # heroes.add(self)
         self.obj_dict_constructor()
         server.send(("^INIT^" + json.dumps(server.id_to_dict[self.obj_id])).encode())
 
@@ -216,13 +210,13 @@ class Hero(Entity):
             elif arg == "A3F":
                 self.action3 = False
 
-    def update(self, x, y):
-        self.rect.x = x
-        self.rect.y = y
-        server.id_to_dict[self.obj_id]["pos_x"] = self.rect.x
-        server.id_to_dict[self.obj_id]["pos_y"] = self.rect.y
-        server.send(("*^" + json.dumps([[self.rect.x, self.rect.y], self.obj_id])).encode())
-
+    def update(self, x, y, hp):
+        self.pos_x = x
+        self.pos_y = y
+        self.hp = hp
+        server.id_to_dict[self.obj_id]["pos_x"] = self.pos_x
+        server.id_to_dict[self.obj_id]["pos_y"] = self.pos_y
+        server.send(("*^" + json.dumps([[self.pos_x, self.pos_y], self.obj_id, self.hp])).encode())
 
     def gravity(self):
         if self.grounded:
@@ -264,13 +258,13 @@ class Object_Identity:
         self.object_dict[o.object_id] = {"pos_x": o.pos_x, "pos_y": o.pos_y, "width": o.width, "height": o.height,
                                          "color": o.color, "name": o.name, "obj_id": o.object_id}
 
-class Tile(Entity):
+class Tile(object):
     def __init__(self, pos_x, pos_y, tile):
         super(Tile, self).__init__()
-        self.image = pygame.Surface([50, 50])
-        self.rect = self.image.get_rect(bottomleft=((pos_x, pos_y)))
-        if tile == "1":
-            collide.add(self)
+        # self.image = pygame.Surface([50, 50])
+        # self.rect = self.image.get_rect(bottomleft=((pos_x, pos_y)))
+        # if tile == "1":
+            # collide.add(self)
 
 class ServerMap():
     def __init__(self):
@@ -297,8 +291,8 @@ def object_handler(data):
 
 
 # Groups
-heroes = pygame.sprite.Group()
-collide = pygame.sprite.Group()
+# heroes = pygame.sprite.Group()
+# collide = pygame.sprite.Group()
 
 # Map
 servermap = ServerMap()

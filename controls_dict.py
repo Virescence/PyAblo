@@ -9,7 +9,6 @@ controls = {
     "button1": K_1,
     "button2": K_SPACE,
     "button3": K_3,
-
 }
 
 def cont_imp():

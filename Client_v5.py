@@ -7,13 +7,53 @@ import socket
 import threading
 import textwrap
 import time
-import controls_dict
 import pyganim
-import anichoose
+
+
+
+
+class DefineAnimations():
+    def __init__(self):
+        self.front_standing = pygame.image.load('resources/img/crono_front.gif')
+        self.back_standing = pygame.image.load('resources/img/crono_back.gif')
+        self.left_standing = pygame.image.load('resources/img/crono_left.gif')
+        self.right_standing = pygame.transform.flip(self.left_standing, True, False)
+        self.keyimg = pygame.image.load('resources/img/crono_keyimg.gif')
+        self.animTypes = 'back_run back_walk front_run front_walk left_run left_walk'.split()
+        self.animObjs = {}
+        for self.animType in self.animTypes:
+            self.imagesAndDurations = [('resources/img/crono_%s.%s.gif' % (self.animType, str(num).rjust(3, '0')), 100)
+                                for num in range(6)]
+            self.animObjs[self.animType] = pyganim.PygAnimation(self.imagesAndDurations)
+
+        # create the right-facing sprites by copying and flipping the left-facing sprites
+        self.animObjs['right_walk'] = self.animObjs['left_walk'].getCopy()
+        self.animObjs['right_walk'].flip(True, False)
+        self.animObjs['right_walk'].makeTransformsPermanent()
+        self.animObjs['right_run'] = self.animObjs['left_run'].getCopy()
+        self.animObjs['right_run'].flip(True, False)
+        self.animObjs['right_run'].makeTransformsPermanent()
+        self.animObjs['front_standing'] = self.front_standing
+        self.animObjs['back_standing'] = self.back_standing
+        self.animObjs['left_standing'] = self.left_standing
+        self.animObjs['right_standing'] = self.right_standing
+
+    def pick(self, change_x, change_y):
+
+        if change_x > 1 and not change_x > 25:
+            return 'right_walk'
+        elif change_x > 25:
+            return 'right_run'
+        elif change_x < -1 and not change_x < -25:
+            return 'left_walk'
+        elif change_x < -25:
+            return 'left_run'
+        else:
+            return 'front_walk'
 
 # RICKY, CLEAN THIS UP, SO MESSY :( :( :( :(
 # Am I wasting memory by loading and playing all images?
-defineanimations = anichoose.DefineAnimations()
+defineanimations = DefineAnimations()
 for key in defineanimations.animObjs:
     try:
         defineanimations.animObjs[key].play()
@@ -21,12 +61,15 @@ for key in defineanimations.animObjs:
         pass
 # CLEAN ME & && & * * * & ^ ^^
 
+
+
 class Client:
     def __init__(self):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
     def sendData(self, data):
-        self.sock.sendto(data.encode(), ("127.0.0.1", 1234))
+        self.sock.sendto(data.encode(), ("wiesen.tech", 1234))
+        # print("sent: " + repr(data))
 
     # def sendAuth(self, data):
         # self.sock.sendto(data.encode(), ("localhost", 1235))
@@ -35,9 +78,11 @@ class Client:
         while True:
             try:
                 data = self.sock.recv(8192)
+                # print("recv data: " + repr(data))
                 if data:
                     self.dataHandler(data)
             except Exception as e:
+                print("Failed at line 85")
                 pass
 
     def dataHandler(self, data):
@@ -94,8 +139,9 @@ class Client:
         pos_x = data[0][0]
         pos_y = data[0][1]
         obj_id = data[1]
+        hp = data[2]
         if not obj_id == game.hero.obj_id:
-            game.id_to_object[obj_id].update(pos_x, pos_y)
+            game.id_to_object[obj_id].update(pos_x, pos_y, hp)
 
 
 class Chat:
@@ -249,6 +295,7 @@ class HealthBar(Entity):
         self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 95)
         self.image = pygame.image.load('resources/Health/H' + repr(self.daddy.curr_hp) + '.gif')
 
+
 class RemoteHero(Entity):
     def __init__(self, pos_x, pos_y, width, height, color, name, obj_id):  # add NAME
         super(RemoteHero, self).__init__()
@@ -260,28 +307,32 @@ class RemoteHero(Entity):
         self.height = height
         self.width = width
         self.color = color
+        self.curr_hp = 10
         # self.image = pygame.Surface([self.width, self.height])
         # self.image.fill((color))
         self.image = defineanimations.keyimg
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         self.anim = defineanimations.animObjs['back_walk']
         self.hero_name = HeroName(self.pos_x, self.pos_y, self.name, self)
+        self.health_bar = HealthBar(self)
         heroes.add(self)
         remote_heroes.add(self)
         game.id_to_object[self.obj_id] = self
         self.change_x = 0
         self.change_y = 0
 
-    def update(self, pos_x, pos_y):
+    def update(self, pos_x, pos_y, hp):
         self.change_x = pos_x - self.rect.x
         self.change_y = pos_y - self.rect.y
         self.rect.x = pos_x
         self.pos_x = pos_x
         self.rect.y = pos_y
         self.pos_y = pos_y
+        self.curr_hp = hp
         self.hero_name.update()
+        self.health_bar.update()
 
-        anichoice = anichoose.pick(self.change_x, self.change_y)
+        anichoice = defineanimations.pick(self.change_x, self.change_y)
         self.anim = defineanimations.animObjs[anichoice]
         #Not sure how to keep previous position data
         #What if, in addition to position, we send the change variables over also.
@@ -353,6 +404,7 @@ class ClientHero(Entity):
         if self.curr_hp < self.max_hp:
             if time.time() >= self.hp_dt + self.hp_cd:
                 self.curr_hp += 1
+                self.send_update()
 
     def update(self):
         if self.cooldown1:
@@ -435,7 +487,7 @@ class ClientHero(Entity):
                     self.rect.top = x.rect.bottom
                     self.change_y = 0
 
-        anichoice = anichoose.pick(self.change_x, self.change_y)
+        anichoice = defineanimations.pick(self.change_x, self.change_y)
         self.anim = defineanimations.animObjs[anichoice]
 
         self.hero_name.update()
@@ -443,10 +495,7 @@ class ClientHero(Entity):
         if self.rect.x != self.previous_x or self.rect.y != self.previous_y:
             self.previous_x = self.rect.x
             self.previous_y = self.rect.y
-
-            pos_tuple = [(self.rect.x, self.rect.y), self.obj_id]
-
-            client.sendData(("*^" + json.dumps(pos_tuple)))
+            self.send_update()
 
     def actionfsm(self, event=None, keys=None, mods=None,  chatting=False):
             if event.type == KEYDOWN:
@@ -482,8 +531,14 @@ class ClientHero(Entity):
     def damagetaken(self, damage):
         self.curr_hp -= damage
         self.hp_dt = time.time()
+        self.send_update()
         if self.curr_hp < 1:
-            self.kill()
+            self.rect.y = 0
+            self.curr_hp = 10
+
+    def send_update(self):
+        data = [(self.rect.x, self.rect.y), self.obj_id, self.curr_hp]
+        client.sendData(("*^" + json.dumps(data)))
 
 
 class AttackObject(Entity):
@@ -502,6 +557,9 @@ class AttackObject(Entity):
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         attk_objects.add(self)
         client.sendData("^ATK" + json.dumps([self.pos_x, self.pos_y, self.direction]))
+
+    def get_angle(self, mouse_coordinates):
+        offset = (mouse_coordinates[1] - (screen.screen_y / 2), mouse_coordinates[0] - (screen.screen_x / 2))
 
     def update(self):
         if self.distance_traveled > 500:
@@ -595,7 +653,7 @@ class ClientFSM:
         self.password = None
         self.map_loaded = False
         self.loading = None
-        self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
+        self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'resources/LoginBox.png')
         self.logintext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
         self.passwordtext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
 
@@ -770,7 +828,16 @@ class Screen:
         self.screen = pygame.display.set_mode(self.screen)
 
 screen = Screen()
-controls = controls_dict.cont_imp()
+controls = {
+    "up" : K_w,
+    "down": K_s,
+    "left": K_a,
+    "right": K_d,
+    "button1": K_1,
+    "button2": K_SPACE,
+    "button3": K_3,
+}
+
 
 
 class Map:
@@ -884,6 +951,7 @@ while running:
     clock.tick(60)
     screen.screen.fill(Color(0, 0, 0))
     pygame.event.pump()
+    mouse_coordinates = pygame.mouse.get_pos()
     keys = pygame.key.get_pressed()
     mods = pygame.key.get_mods()
     for event in pygame.event.get():
