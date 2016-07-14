@@ -82,7 +82,6 @@ class Client:
                 if data:
                     self.dataHandler(data)
             except Exception as e:
-                print("Failed at line 85")
                 pass
 
     def dataHandler(self, data):
@@ -689,19 +688,30 @@ class ClientFSM:
 
     def authenticate(self, message):
         try:
-            message = json.loads(message)
-            self.logged_in = True
-            game.make_hero(75, 50, 15, 30, ((random.randint(0, 200)), (random.randint(0, 200)),
-                                            (random.randint(0, 200))), message[0], message[1])
-            client.sendData("INIT" + json.dumps(game.hero.object_dict))
+            if message != "False":
+                message = json.loads(message)
+                self.logged_in = True
+                game.make_hero(75, 50, 15, 30, ((random.randint(0, 200)), (random.randint(0, 200)),
+                                                (random.randint(0, 200))), message[0], message[1])
+                client.sendData("INIT" + json.dumps(game.hero.object_dict))
+            else:
+                self.logged_in = False
+                self.username = None
+                self.password = None
+                self.username_entered = False
+                self.loading.kill()
+                self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'resources/LoginBox.png')
+                self.logintext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
+                self.passwordtext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
 
         except:
+            print("except")
             self.logged_in = False
             self.username = None
             self.password = None
             self.username_entered = False
             self.loading.kill()
-            self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'LoginBox.png')
+            self.loginimage = UIPicture((screen.screen_x / 2), (screen.screen_y / 2), 'resources/LoginBox.png')
             self.logintext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 - 5, "", (0, 0, 0), "UI")
             self.passwordtext = UIText(screen.screen_x / 2 - 74, screen.screen_y / 2 + 43, "", (0, 0, 0), "UI")
 
