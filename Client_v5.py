@@ -69,6 +69,7 @@ class Client:
 
     def sendData(self, data):
         self.sock.sendto(data.encode(), ("wiesen.tech", 1234))
+        # self.sock.sendto(data.encode(), ("127.0.0.1", 1234))
         # print("sent: " + repr(data))
 
     # def sendAuth(self, data):
@@ -286,13 +287,17 @@ class HealthBar(Entity):
         self.daddy = daddy
         self.pos_x = daddy.pos_x
         self.pos_y = daddy.pos_y
+        self.temp_hp = 10
         self.image = pygame.image.load('resources/Health/H10.gif')
         self.rect = self.image.get_rect(center=((self.pos_x, self.pos_y)))
         nameplates.add(self)
 
     def update(self):
         self.rect.midbottom = (self.daddy.rect.midbottom[0], self.daddy.rect.midbottom[1] - 95)
-        self.image = pygame.image.load('resources/Health/H' + repr(self.daddy.curr_hp) + '.gif')
+        if self.temp_hp != self.daddy.curr_hp:
+            self.image = pygame.image.load('resources/Health/H' + repr(self.daddy.curr_hp) + '.gif')
+            self.temp_hp = self.daddy.curr_hp
+            print(self.temp_hp)
 
 
 class RemoteHero(Entity):
@@ -329,7 +334,11 @@ class RemoteHero(Entity):
         self.pos_y = pos_y
         self.curr_hp = hp
         self.hero_name.update()
-        self.health_bar.update()
+        try:
+            self.health_bar.update()
+        except:
+            print("wtf is happening?")
+
 
         anichoice = defineanimations.pick(self.change_x, self.change_y)
         self.anim = defineanimations.animObjs[anichoice]
