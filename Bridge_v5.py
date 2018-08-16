@@ -50,8 +50,8 @@ def sql(user, passw, addr):
     # cnx = mysql.connector.connect(user='sec_user', password='eemVhBtQENp8Yzz', host='127.0.0.1', port='3306',
                                   # database='secure_login')
 
-    cnx = mysql.connector.connect(user='sec_user', password='eemVhBtQENp8Yzz', host='dylanschlabach.com', port='23060',
-                                  database='secure_login')
+    cnx = mysql.connector.connect(user='<redacted>', password='<redacted>', host='<redacted>', port='<redacted>',
+                                  database='<redacted>')
 
     cursor_un = cnx.cursor()
     cursor_pw = cnx.cursor()
